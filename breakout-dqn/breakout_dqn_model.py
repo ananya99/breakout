@@ -14,12 +14,12 @@ from es import BaseModel
 
 
 class BreakoutDQN(BaseModel):
-    def __init__(self, env, config):
+    def __init__(self, envs, config):
         # Initialize the env and DQN model
-        self.env = env
+        self.envs = envs
         self.model = DQN(
             "CnnPolicy",
-            env,
+            envs,
             learning_rate=config["learning_rate"],
             buffer_size=config["buffer_size"],
             batch_size=config["batch_size"],
@@ -55,7 +55,7 @@ class BreakoutDQN(BaseModel):
         total_rewards = []
         
         for _ in range(num_episodes):
-            obs = self.env.reset()
+            obs = self.envs.reset()
             done = False
             episode_reward = 0
             

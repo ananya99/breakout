@@ -13,11 +13,16 @@ import ale_py
 from es import BaseModel, EvolutionStrategy
 from breakout_dqn_model import BreakoutDQN
 
+def make_env(population_size: int):
+    envs = make_atari_env("ALE/Breakout-v5", n_envs=population_size, seed=42)
+    envs = VecFrameStack(envs, n_stack=4)
+    return envs
+
 def main():
     # Initialize the Breakout environment
     population_size = 50
-    envs = make_atari_env("ALE/Breakout-v5", n_envs=population_size, seed=42)
-    envs = VecFrameStack(envs, n_stack=4)
+    
+    envs = SyncVectorEnv([make_env(population_size) for _ in range(population_size)])
     
     # Initialize models and logs directories
     current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")

@@ -53,7 +53,7 @@ class EvolutionStrategy:
             checkpoint_dir: Directory to save checkpoints
         """
         self.envs = envs
-        self.models = [model(envs, dqn_config) for _ in range(population_size)]
+        self.model = model(envs, dqn_config)
         self.population_size = population_size
         self.sigma = sigma
         self.learning_rate = learning_rate
@@ -74,23 +74,17 @@ class EvolutionStrategy:
         """Evaluate entire population and return rewards."""
          # Create perturbed parameters
         perturbed_params = theta.unsqueeze(0) + self.sigma * noises
-        with torch.no_grad():
-            rewards = []
-            for i, noise in enumerate(noises):
                 
-                # Set parameters and evaluate
-                self.model.set_parameters(perturbed_params)
-                reward = self.model.evaluate(self.num_episodes)
-                rewards.append(reward)
-            
-            print(f"Individual {i}: Reward = {reward:.2f}")
-            
+        self.model.set_parameters(perturbed_params)
+        rewards = self.model.evaluate_batch(self.num_episodes)
+        print(f"Rewards = {rewards}")
+
         return rewards
 
     def train(self, num_generations: int = 1000) -> None:
         """Train using evolution strategy."""
         # Get initial parameters
-        theta = self.model.get_parameters()
+        theta = self.model.get_base_parameters()
         best_reward = float('-inf')
         
         for generation in range(num_generations):
@@ -101,11 +95,13 @@ class EvolutionStrategy:
             
             # Evaluate population
             rewards = self._evaluate_population(theta, noises)
-            rewards = np.array(rewards)
             
             # Compute reward statistics
-            mean_reward = np.mean(rewards)
-            max_reward = np.max(rewards)
+            mean_reward = rewards.mean()
+            max_reward = rewards.max()
+            
+            normalised_rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-8)
+            weighted_sum = noises*normalised_rewards.unsqueeze(-1).sum(dim=0)
             
             # Update best reward and save checkpoint if needed
             if max_reward > best_reward:
@@ -122,10 +118,6 @@ class EvolutionStrategy:
                         f"es_checkpoint_{generation}.pt"
                     )
                     self.model.save_checkpoint(checkpoint_path, generation, metrics)
-            
-            # Compute the reward-weighted sum of noise
-            normalized_rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-8)
-            weighted_sum = sum(r * n for r, n in zip(normalized_rewards, noises))
             
             # Update parameters
             theta = theta + self.learning_rate / (self.population_size * self.sigma) * weighted_sum
