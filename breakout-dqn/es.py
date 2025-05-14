@@ -6,12 +6,12 @@ from datetime import datetime
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
 
+from base_model import BaseModel
+
 class EvolutionStrategy:
     def __init__(
         self,
-        envs: VecEnv,
-        model: Type[BaseModel],
-        dqn_config: Dict[str, Any],
+        model: BaseModel,
         population_size: int = 50,
         sigma: float = 0.1,
         learning_rate: float = 0.01,
@@ -31,8 +31,7 @@ class EvolutionStrategy:
             save_freq: How often to save checkpoints (in generations)
             checkpoint_dir: Directory to save checkpoints
         """
-        self.envs = envs
-        self.models = [model(envs, dqn_config) for _ in range(population_size)]
+        self.model = model
         self.population_size = population_size
         self.sigma = sigma
         self.learning_rate = learning_rate
@@ -47,15 +46,16 @@ class EvolutionStrategy:
     
     def _evaluate_population(
         self, 
-        theta: torch.Tensor, 
-        noises: torch.Tensor
+        theta: np.ndarray, 
+        noises: List[np.ndarray]
     ) -> List[float]:
         """Evaluate entire population and return rewards."""
-         # Create perturbed parameters
-        perturbed_params = theta.unsqueeze(0) + self.sigma * noises
+        
         with torch.no_grad():
             rewards = []
             for i, noise in enumerate(noises):
+                # Create perturbed parameters
+                perturbed_params = theta + self.sigma * noise
                 
                 # Set parameters and evaluate
                 self.model.set_parameters(perturbed_params)
@@ -76,7 +76,7 @@ class EvolutionStrategy:
             print(f"\nGeneration {generation}/{num_generations}")
             
             # Generate random noise for each member of the population
-            noises = torch.randn(self.population_size, *theta.shape, device=self.device)
+            noises = [np.random.normal(0, 1, theta.shape) for _ in range(self.population_size)]
             
             # Evaluate population
             rewards = self._evaluate_population(theta, noises)

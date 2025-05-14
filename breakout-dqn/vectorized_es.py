@@ -40,6 +40,7 @@ class EvolutionStrategy:
         self.learning_rate = learning_rate
         self.num_episodes = num_episodes
         self.save_freq = save_freq
+        self.device = self.model.device
         
         # Setup directories
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")

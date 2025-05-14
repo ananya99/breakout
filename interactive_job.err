@@ -4,6 +4,14 @@ Lmod is automatically replacing "gcc/11.3.0" with "intel/2021.6.0".
 
 Lmod is automatically replacing "intel/2021.6.0" with "nvhpc/23.3-mpi".
 
-/home/anagupta/breakout/.venv/bin/python: can't open file '/home/anagupta/breakout/breakout-dqn/vectorizedbreakout_es.py': [Errno 2] No such file or directory
-srun: error: ixl02: task 0: Exited with exit code 2
-srun: Terminating StepId=2634308.0
+A.L.E: Arcade Learning Environment (version 0.11.0+dfae0bd)
+[Powered by Stella]
+/home/anagupta/breakout/.venv/lib64/python3.9/site-packages/networkx/utils/backends.py:135: RuntimeWarning: networkx backend defined more than once: nx-loopback
+  backends.update(_get_backends("networkx.backends"))
+wandb: Currently logged in as: ananyag (ananyag-epfl) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.19.11
+wandb: Run data is saved locally in /home/anagupta/breakout/wandb/run-20250514_111516-gbs87p1h
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run es_2025-05-14_11-14-51
+wandb: ⭐️ View project at https://wandb.ai/ananyag-epfl/breakout-dqn-es
+wandb: 🚀 View run at https://wandb.ai/ananyag-epfl/breakout-dqn-es/runs/gbs87p1h

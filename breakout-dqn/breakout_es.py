@@ -16,7 +16,7 @@ from breakout_dqn_model import BreakoutDQN
 def main():
     # Initialize the Breakout environment
     population_size = 50
-    envs = make_atari_env("ALE/Breakout-v5", n_envs=population_size, seed=42)
+    envs = make_atari_env("ALE/Breakout-v5", n_envs=1, seed=42)
     envs = VecFrameStack(envs, n_stack=4)
     
     # Initialize models and logs directories
@@ -53,15 +53,13 @@ def main():
         "sigma": 0.2,
         "learning_rate": 0.01,
         "num_episodes": 5,
-        "save_freq": 10,
+        "save_freq": 1000,
         "checkpoint_dir": models_dir,
     }
     
     # Initialize Evolution Strategy with the model
     es = EvolutionStrategy(
-        envs=envs,
-        model=BreakoutDQN,
-        dqn_config=dqn_config,
+        model=breakout_dqn_model,
         population_size=population_size,
         sigma=es_config["sigma"],
         learning_rate=es_config["learning_rate"],
@@ -83,7 +81,7 @@ def main():
     )
     
     # Train using evolution strategy
-    es.train(num_generations=1000)
+    es.train(num_generations=10000)
 
     wandb.finish()
 

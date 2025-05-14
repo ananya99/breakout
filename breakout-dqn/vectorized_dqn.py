@@ -49,7 +49,11 @@ class BreakoutVectorizedDQN(BaseModel):
         self.policy_params = torch.stack(self.policy_params).to(self.device)
         
     def get_base_parameters(self) -> torch.Tensor:
-        return self.base_model.policy.parameters().to(self.device)
+        # Convert parameters generator to a list of tensors and concatenate them
+        params = []
+        for param in self.base_model.policy.parameters():
+            params.append(param.data.view(-1))
+        return torch.cat(params).to(self.device)
     
     def get_parameters(self) -> torch.Tensor:
         return self.policy_params
@@ -82,25 +86,59 @@ class BreakoutVectorizedDQN(BaseModel):
         total_rewards = torch.zeros(self.population_size).to(self.device)
         
         for _ in range(num_episodes):
-            observations = torch.float32(self.envs.reset()).to(self.device)
+            obs = self.envs.reset()
+            observations = torch.tensor(obs, dtype=torch.float32).to(self.device)
             dones = [False] * self.population_size
             episode_rewards = torch.zeros(self.population_size).to(self.device)
             
             while not all(dones):
                 actions = self.forward_batch(observations)
                 next_observations, next_rewards, next_dones, _ = self.envs.step(actions.cpu().numpy())
+                observations = torch.tensor(next_observations, dtype=torch.float32).to(self.device)
+                print(f"Next rewards shape= {next_rewards.shape}")
                 episode_rewards += torch.tensor(next_rewards).to(self.device)
+                dones = next_dones
             
             total_rewards += episode_rewards
         
         return total_rewards / num_episodes
     
+    def evaluate_batch(self, num_episodes: int) -> float:
+        return self.evaluate(num_episodes)
+    
     def save_checkpoint(self, path: str, generation: int, metrics: Dict[str, Any]) -> None:
         """Save a checkpoint of the model."""
-        checkpoint = {
-            "generation": generation,
-            "model_state_dict": self.model.policy.state_dict(),
-            "metrics": metrics,
-        }
-        torch.save(checkpoint, path)
-        print(f"Saved checkpoint to {path}")
+        try:
+            # Ensure directory exists
+            save_dir = os.path.dirname(path)
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+
+            # Save state dict and metrics separately
+            state_dict_path = os.path.join(save_dir, f"state_dict_{generation}.pt")
+            metrics_path = os.path.join(save_dir, f"metrics_{generation}.pt")
+            
+            # Save state dict
+            torch.save(self.base_model.policy.state_dict(), state_dict_path)
+            
+            # Save metrics separately
+            metrics_dict = {
+                "generation": generation,
+                "metrics": metrics
+            }
+            torch.save(metrics_dict, metrics_path)
+            
+            print(f"Saved checkpoint files to {save_dir}")
+        except Exception as e:
+            print(f"Error saving checkpoint: {str(e)}")
+            # Try to save in home directory as fallback
+            home_dir = os.path.expanduser("~")
+            fallback_dir = os.path.join(home_dir, "breakout_checkpoints")
+            os.makedirs(fallback_dir, exist_ok=True)
+            
+            state_dict_path = os.path.join(fallback_dir, f"state_dict_{generation}.pt")
+            metrics_path = os.path.join(fallback_dir, f"metrics_{generation}.pt")
+            
+            torch.save(self.base_model.policy.state_dict(), state_dict_path)
+            torch.save(metrics_dict, metrics_path)
+            print(f"Saved checkpoint files to fallback location: {fallback_dir}")

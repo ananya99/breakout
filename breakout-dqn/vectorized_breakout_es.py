@@ -11,20 +11,23 @@ import wandb
 import ale_py
 
 from vectorized_es import EvolutionStrategy
-from vectoried_dqn import BreakoutVectorizedDQN
+from vectorized_dqn import BreakoutVectorizedDQN
 from gymnasium.vector import SyncVectorEnv
 
 
-def make_env(population_size: int):
-    envs = make_atari_env("ALE/Breakout-v5", n_envs=population_size, seed=42)
-    envs = VecFrameStack(envs, n_stack=4)
-    return envs
+def make_env():
+    env = make_atari_env("ALE/Breakout-v5", n_envs=1, seed=42)
+    env = VecFrameStack(env, n_stack=4)
+    return env
 
 def main():
     # Initialize the Breakout environment
     population_size = 50
     
-    envs = SyncVectorEnv([make_env(population_size) for _ in range(population_size)])
+    # Create one vectorized environment per population member
+    # envs = SyncVectorEnv([make_env(population_size) for _ in range(population_size)])
+    envs = make_atari_env("ALE/Breakout-v5", n_envs=population_size, seed=42)
+    envs = VecFrameStack(envs, n_stack=4)
     
     # Initialize models and logs directories
     current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -50,6 +53,7 @@ def main():
         "optimize_memory_usage": False,
         "verbose": 1,
         "tensorboard_log": logdir,
+        "population_size": population_size,
     }
     
     # Initialize the Breakout model
@@ -83,16 +87,16 @@ def main():
     }
     
     # Initialize wandb
-    # wandb.init(
-    #     project="breakout-dqn-es",
-    #     name=f"es_{current_datetime}",
-    #     config=combined_config
-    # )
+    wandb.init(
+        project="breakout-dqn-es",
+        name=f"es_{current_datetime}",
+        config=combined_config
+    )
     
-    # # Train using evolution strategy
-    # es.train(num_generations=1000)
+    # Train using evolution strategy
+    es.train(num_generations=1000)
 
-    # wandb.finish()
+    wandb.finish()
 
 if __name__ == "__main__":
     main() 
