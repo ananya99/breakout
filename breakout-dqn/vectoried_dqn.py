@@ -6,11 +6,12 @@ from stable_baselines3.common.env_util import make_atari_env
 from stable_baselines3.common.vec_env import VecFrameStack
 from stable_baselines3.dqn import DQN
 from typing import Dict, Any
-
+import numpy as np
+import torch.nn as nn
 import wandb
 import ale_py
 
-from es import BaseModel
+from base_model import BaseModel
 
 
 class BreakoutVectorizedDQN(BaseModel):

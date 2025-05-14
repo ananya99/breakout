@@ -10,8 +10,10 @@ from typing import Dict, Any
 import wandb
 import ale_py
 
-from es import BaseModel, EvolutionStrategy
-from breakout_dqn_model import BreakoutDQN
+from vectorized_es import EvolutionStrategy
+from vectoried_dqn import BreakoutVectorizedDQN
+from gymnasium.vector import SyncVectorEnv
+
 
 def make_env(population_size: int):
     envs = make_atari_env("ALE/Breakout-v5", n_envs=population_size, seed=42)
@@ -51,7 +53,7 @@ def main():
     }
     
     # Initialize the Breakout model
-    breakout_dqn_model = BreakoutDQN(envs, dqn_config)
+    breakout_dqn_model = BreakoutVectorizedDQN(envs, dqn_config)
     
     es_config = {
         "population_size": population_size,
@@ -65,7 +67,7 @@ def main():
     # Initialize Evolution Strategy with the model
     es = EvolutionStrategy(
         envs=envs,
-        model=BreakoutDQN,
+        model=BreakoutVectorizedDQN,
         dqn_config=dqn_config,
         population_size=population_size,
         sigma=es_config["sigma"],
@@ -81,16 +83,16 @@ def main():
     }
     
     # Initialize wandb
-    wandb.init(
-        project="breakout-dqn-es",
-        name=f"es_{current_datetime}",
-        config=combined_config
-    )
+    # wandb.init(
+    #     project="breakout-dqn-es",
+    #     name=f"es_{current_datetime}",
+    #     config=combined_config
+    # )
     
-    # Train using evolution strategy
-    es.train(num_generations=1000)
+    # # Train using evolution strategy
+    # es.train(num_generations=1000)
 
-    wandb.finish()
+    # wandb.finish()
 
 if __name__ == "__main__":
     main() 
