@@ -80,7 +80,8 @@ def main():
     
     # Initialize the Breakout model
     breakout_dqn_model = BreakoutDQN(env, dqn_config)
-    print(f"Number of parameters in DQN model: {sum(p.numel() for p in breakout_dqn_model.model.policy.parameters())}", flush=True)
+    # print(f"Number of parameters in DQN model: {sum(p.numel() for p in breakout_dqn_model.model.policy.parameters())}", flush=True)
+    # print(f"policy: {breakout_dqn_model.model.policy}", flush=True)
     
     print("Models initialized", flush=True)
     

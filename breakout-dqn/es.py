@@ -2,10 +2,22 @@ import os
 import numpy as np
 import torch
 import wandb
-from datetime import datetime
+from datetime import datetime, time
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
 from base_model import BaseModel
+import nevergrad as ng
+import traceback
+
+
+import os
+import psutil
+
+def log_memory(stage=""):
+    process = psutil.Process(os.getpid())
+    mem = process.memory_info().rss / (1024 ** 2)
+    print(f"[{stage}] Memory usage: {mem:.2f} MB")
+
 
 class EvolutionStrategy:
 
@@ -77,23 +89,46 @@ class EvolutionStrategy:
 
 
     def train(self) -> None:
+        # start timer
+        start_time = time.time()
         # Get initial parameters
         theta = self.model.get_parameters()
         best_reward = float('-inf')
         
+        # Initialize Nevergrad optimizer
+        param_dim = len(theta)
+        parametrization = ng.p.Array(shape=(param_dim,), lower=-1, upper=1)
+        optimizer = ng.optimizers.EvolutionStrategy(
+            parametrization=parametrization,
+            budget=self.num_generations * self.population_size,
+            num_workers=1,
+            popsize=self.population_size,  # Population size of parents (lambda)
+            offsprings=self.population_size,  # Number of offsprings (mu)
+            recombination_ratio=0.5,  # Probability of recombination
+            only_offsprings=False,  # Use both parents and offsprings
+            ranker="nsga2"  # Default ranker for multiobjective case
+        )
+        print(f"Initialized ES optimizer with population size: {self.population_size}")
+        
         for generation in range(self.num_generations):
             print(f"\nGeneration {generation}/{self.num_generations}", flush=True)
             
-            # Generate random noise for each member of the population
-            #noises = [np.random.normal(0, 1, theta.shape) for _ in range(self.population_size)]
-            
-            # Generate symmetric noise
-            half_pop = self.population_size // 2
-            noise_half = [np.random.normal(0, 1, theta.shape) for _ in range(half_pop)]
-            noises = noise_half + [-n for n in noise_half]  # symmetric perturbations
+            # Generate population using Nevergrad
+            try:
+                log_memory("before ask")
+                candidates = []
+                for _ in range(self.population_size):
+                    candidate = optimizer.ask()
+                    candidates.append(candidate)  # Store the full candidate object
+                log_memory("after ask")
+                print(f"Generated {len(candidates)} candidates", flush=True)
+            except Exception as e:
+                print(f"Error generating candidates: {str(e)}", flush=True)
+                traceback.print_exc() 
+                raise
 
             # Evaluate population
-            rewards, episode_lengths = self._evaluate_population(theta, noises, generation)
+            rewards, episode_lengths = self._evaluate_population(theta, [c.value for c in candidates], generation)
             rewards = np.array(rewards)
             episode_lengths = np.array(episode_lengths)
             # Compute reward statistics
@@ -118,6 +153,10 @@ class EvolutionStrategy:
                         f"es_checkpoint_{generation}.pt"
                     )
                     self.model.save_checkpoint(checkpoint_path, generation, metrics)
+                    
+            # Update optimizer with rewards
+            for candidate, reward in zip(candidates, rewards):
+                optimizer.tell(candidate, -reward)  # Pass the full candidate object
             
             # Compute the reward-weighted sum of noise
             normalized_rewards = (rewards - np.mean(rewards)) / (np.std(rewards) + 1e-8)
@@ -142,17 +181,17 @@ class EvolutionStrategy:
                 "best_reward_so_far": best_reward,
                 "mean_episode_length": mean_episode_length,
                 "max_episode_length": max_episode_length,
+                "time_taken": time.time() - start_time,
             }, step=self.model.model.num_timesteps)
             
             print(f"num_timesteps: {self.model.model.num_timesteps}")
-            
             print(f"Generation {generation} done")
             print(f"Mean Reward: {mean_reward:.2f}")
             print(f"Max Reward: {max_reward:.2f}")
             print(f"Best Reward so far: {best_reward:.2f}")
             print(f"Mean Episode Length: {mean_episode_length:.2f}")
             print(f"Max Episode Length: {max_episode_length:.2f}")
-        
+            print(f"Time taken: {time.time() - start_time:.2f} seconds")
         # Save final checkpoint
         final_metrics = {
             "reward": best_reward,
@@ -161,6 +200,7 @@ class EvolutionStrategy:
             "max_reward": max_reward,
             "mean_episode_length": mean_episode_length,
             "max_episode_length": max_episode_length,
+            "time_taken": time.time() - start_time,
         }
         final_path = os.path.join(self.checkpoint_dir, f"es_checkpoint_final.pt")
         self.model.save_checkpoint(final_path, self.num_generations, final_metrics)
